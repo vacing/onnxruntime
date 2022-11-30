@@ -1361,7 +1361,7 @@ def build_targets(args, cmake_path, build_dir, configs, num_parallel_jobs, targe
             env["ANDROID_SDK_ROOT"] = args.android_sdk_path
             env["ANDROID_NDK_HOME"] = args.android_ndk_path
 
-        run_subprocess(cmd_args, env=env)
+        run_subprocess(['make', 'VERBOSE=1', '-j24'], cwd='/build/RelWithDebInfo', env=env)
 
 
 def add_dir_if_exists(directory, dir_list):
