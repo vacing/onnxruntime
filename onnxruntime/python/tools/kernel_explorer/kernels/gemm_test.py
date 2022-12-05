@@ -19,7 +19,7 @@ def dtype_to_suffix(dtype):
     }[dtype]
 
 
-def _test_gemm(func, dtype: str, m: int, n: int, k: int, transa=False, transb=False):
+def _test_gemm(func, dtype: str, transa: bool, transb: bool, m: int, n: int, k: int):
     assert dtype in ["float32", "float16"]
 
     a_shape = (k, m) if transa else (m, k)
@@ -75,31 +75,31 @@ dtypes = ["float32", "float16"]
 all_transabs = list(product([True, False], repeat=2))
 
 
+@pytest.mark.parametrize("m, n, k", get_gemm_basic_sizes(full=True) + get_gemm_bert_sizes(full=False))
+@pytest.mark.parametrize("transa, transb", all_transabs)
 @pytest.mark.parametrize("dtype", dtypes)
-@pytest.mark.parametrize("size", get_gemm_basic_sizes(full=True) + get_gemm_bert_sizes(full=False))
-@pytest.mark.parametrize("transab", all_transabs)
-def test_rocblas_gemm_all_cases(dtype, size, transab):
-    _test_gemm(getattr(ke, "RocBlasGemm_" + dtype_to_suffix(dtype)), dtype, *size, *transab)
+def test_rocblas_gemm_all_cases(dtype, transa, transb, m, n, k):
+    _test_gemm(getattr(ke, "RocBlasGemm_" + dtype_to_suffix(dtype)), dtype, transa, transb, m, n, k)
 
 
+@pytest.mark.parametrize("m, n, k", get_gemm_basic_sizes(full=False) + get_gemm_bert_sizes(full=False))
+@pytest.mark.parametrize("transa, transb", all_transabs)
 @pytest.mark.parametrize("dtype", dtypes)
-@pytest.mark.parametrize("size", get_gemm_basic_sizes(full=False) + get_gemm_bert_sizes(full=False))
-@pytest.mark.parametrize("transab", all_transabs)
-def test_ck_gemm_bert_cases(dtype, size, transab):
-    wrapper_name = "CKGemm_{}_{}".format(dtype_to_suffix(dtype), transab_to_suffix(transab))
-    _test_gemm(getattr(ke, wrapper_name), dtype, *size, *transab)
+def test_ck_gemm_bert_cases(dtype, transa, transb, m, n, k):
+    wrapper_name = "CKGemm_{}_{}".format(dtype_to_suffix(dtype), transab_to_suffix((transa, transb)))
+    _test_gemm(getattr(ke, wrapper_name), dtype, transa, transb, m, n, k)
 
 
 # Tunable is basically wrapped around of rocblas and ck gemm, so no need for full tests
+@pytest.mark.parametrize("m, n, k", get_gemm_basic_sizes(full=False) + get_gemm_bert_sizes(full=False))
+@pytest.mark.parametrize("transa, transb", all_transabs)
 @pytest.mark.parametrize("dtype", dtypes)
-@pytest.mark.parametrize("size", get_gemm_basic_sizes(full=False) + get_gemm_bert_sizes(full=False))
-@pytest.mark.parametrize("transab", all_transabs)
-def test_gemm_tunable_bert_cases(dtype, size, transab):
-    wrapper_name = "GemmTunable_{}_{}".format(dtype_to_suffix(dtype), transab_to_suffix(transab))
-    _test_gemm(getattr(ke, wrapper_name), dtype, *size, *transab)
+def test_gemm_tunable_bert_cases(dtype, transa, transb, m, n, k):
+    wrapper_name = "GemmTunable_{}_{}".format(dtype_to_suffix(dtype), transab_to_suffix((transa, transb)))
+    _test_gemm(getattr(ke, wrapper_name), dtype, transa, transb, m, n, k)
 
 
-def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int, k: int):
+def profile_gemm_func(f, dtype: str, transa: bool, transb: bool, m: int, n: int, k: int):
     a_shape = (k, m) if transa else (m, k)
     b_shape = (n, k) if transb else (k, n)
 
@@ -133,20 +133,19 @@ def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int,
         )
 
 
-def profile_with_args(transa, transb, dtype, m, n, k):
+def profile_with_args(dtype, transa, transb, m, n, k):
     dtype_suffix = "_" + dtype_to_suffix(dtype)
-    profile_gemm_func(getattr(ke, "RocBlasGemm" + dtype_suffix), transa, transb, dtype, m, n, k)
+    profile_gemm_func(getattr(ke, "RocBlasGemm" + dtype_suffix), dtype, transa, transb, m, n, k)
     transab_suffix = "_" + transab_to_suffix((transa, transb))
-    profile_gemm_func(getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
-    profile_gemm_func(getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
+    profile_gemm_func(getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), dtype, transa, transb, m, n, k)
+    profile_gemm_func(getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), dtype, transa, transb, m, n, k)
+    print()
 
 
 def profile():
     for dtype in dtypes:
         for m, n, k in get_gemm_bert_sizes(full=True):
-            profile_with_args(False, False, dtype, m, n, k)
-            print()
-        print()
+            profile_with_args(dtype, False, False, m, n, k)
 
 
 if __name__ == "__main__":
@@ -154,9 +153,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group("profile with args")
+    group.add_argument("dtype", choices=dtypes)
     group.add_argument("transa", choices="NT")
     group.add_argument("transb", choices="NT")
-    group.add_argument("dtype", choices=dtypes)
     group.add_argument("m", type=int)
     group.add_argument("n", type=int)
     group.add_argument("k", type=int)
@@ -164,4 +163,4 @@ if __name__ == "__main__":
         profile()
     else:
         args = parser.parse_args()
-        profile_with_args(args.transa == "T", args.transb == "T", args.dtype, args.m, args.n, args.k)
+        profile_with_args(args.dtype, args.transa == "T", args.transb == "T", args.m, args.n, args.k)
