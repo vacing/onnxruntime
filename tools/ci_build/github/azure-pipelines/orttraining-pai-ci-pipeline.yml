@@ -17,7 +17,7 @@ jobs:
     - name: onnxruntimeBuildSucceeded
       value: false
     - name: RocmVersion
-      value: 5.2.3
+      value: 5.4
 
   # generated from tools/ci_build/github/pai/rocm-ci-pipeline-env.Dockerfile
   container:
@@ -58,6 +58,7 @@ jobs:
           --cmake_extra_defines \
               CMAKE_HIP_COMPILER=${ROCM_HOME}/llvm/bin/clang++ \
               onnxruntime_BUILD_KERNEL_EXPLORER=ON \
+              CMAKE_HIP_FLAGS="-Wno-deprecated-builtins" \
           --use_rocm \
           --rocm_version=$(RocmVersion) \
           --rocm_home ${ROCM_HOME} \
