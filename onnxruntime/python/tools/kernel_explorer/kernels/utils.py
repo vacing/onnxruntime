@@ -70,7 +70,7 @@ def get_gemm_basic_sizes(full=True):
 
 def sort_profile_results(profile_results, sort_item, reverse=False):
     sorted_profile_result = sorted(profile_results, key=lambda x: x[sort_item], reverse=reverse)
-    tunable_id = -1
+    tunable_id = 0
     for id, result in enumerate(sorted_profile_result):
         if "Tunable" in result["func"]:
             tunable_id = id

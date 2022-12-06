@@ -9,7 +9,7 @@ from itertools import product
 import kernel_explorer as ke
 import numpy as np
 import pytest
-from utils import get_gemm_basic_sizes, get_gemm_bert_sizes, get_gemm_bound, transab_to_suffix
+from utils import get_gemm_basic_sizes, get_gemm_bert_sizes, get_gemm_bound, sort_profile_results, transab_to_suffix
 
 
 def dtype_to_suffix(dtype):
@@ -100,6 +100,7 @@ def test_gemm_tunable_bert_cases(dtype, size, transab):
 
 
 def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int, k: int):
+    profile_results = []
     a_shape = (k, m) if transa else (m, k)
     b_shape = (n, k) if transb else (k, n)
 
@@ -121,24 +122,43 @@ def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int,
     my_gemm = f(opa, opb, m, n, k, alpha, dev_a, lda, dev_b, ldb, beta, dev_c, n)
     for impl in my_gemm.ListOps():
         if not my_gemm.SelectOp(impl):
-            print(f"{impl:<50} {dtype} {transab_to_suffix((transa, transb))} m={m:<4} n={n:<4} k={k:<4} not supported")
-            sys.stdout.flush()
+            profile_results.append({"func": impl, "duration": -1, "tflops": -1})
             continue
         time_ms = my_gemm.Profile()
         time_us = time_ms * 1000
         tflops = (m * k * n * 2) / (time_ms * 1e-3) / 1e12
-        print(
-            f"{impl:<50} {dtype} {transab_to_suffix((transa, transb))}",
-            f"m={m:<4} n={n:<4} k={k:<4} {time_us:>8.4f} us {tflops:>5.2f} tflops",
-        )
+        profile_results.append({"func": impl, "duration": time_us, "tflops": tflops})
+
+    return profile_results
+
+
+def print_result(transa, transb, dtype, m, n, k, sorted_profile_results):
+    for result in sorted_profile_results:
+        if result["tflops"] > 0:
+            print(
+                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))}",
+                f"m={m:<4} n={n:<4} k={k:<4} {result['duration']:>8.4f} us {result['tflops']:>5.2f} tflops",
+            )
+        else:
+            print(
+                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))} m={m:<4} n={n:<4} k={k:<4} not supported"
+            )
 
 
 def profile_with_args(transa, transb, dtype, m, n, k):
+    profile_results = []
     dtype_suffix = "_" + dtype_to_suffix(dtype)
-    profile_gemm_func(getattr(ke, "RocblasGemm" + dtype_suffix), transa, transb, dtype, m, n, k)
+    profile_results.extend(profile_gemm_func(getattr(ke, "RocblasGemm" + dtype_suffix), transa, transb, dtype, m, n, k))
     transab_suffix = "_" + transab_to_suffix((transa, transb))
-    profile_gemm_func(getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
-    profile_gemm_func(getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
+    profile_results.extend(
+        profile_gemm_func(getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
+    )
+    profile_results.extend(
+        profile_gemm_func(getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
+    )
+
+    sorted_profile_results = sort_profile_results(profile_results, sort_item="tflops", reverse=True)
+    print_result(transa, transb, dtype, m, n, k, sorted_profile_results)
 
 
 def profile():

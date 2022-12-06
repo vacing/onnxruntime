@@ -10,6 +10,7 @@ from itertools import product
 import kernel_explorer as ke
 import numpy as np
 import pytest
+from utils import sort_profile_results
 
 
 def get_bert_sizes_test():
@@ -106,20 +107,34 @@ def profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func):
     )
     if my_op.IsSupported():
         duration = my_op.Profile()
-        print(
-            dtype,
-            batch_size,
-            seq_len,
-            hidden_size,
-            my_func,
-            f"{duration * 1000:.2f} us",
-            f"{(input_x.size * 3 + bias.size * 3) * input_x.itemsize * 1e3 / duration / 1e9:.2f} GB/s",
-        )
+        gbytes = (input_x.size * 3 + bias.size * 3) * input_x.itemsize * 1e3 / duration / 1e9
+        duration = duration * 1000
+        return {"func": func, "duration": duration, "gbytes": gbytes}
+    else:
+        return {"func": func, "duration": -1, "gbytes": -1}
+
+
+def print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results):
+    for result in sorted_profile_results:
+        if result["gbytes"] > 0:
+            print(
+                f"{result['func']:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4}",
+                f"{result['duration']:.2f} us",
+                f"{result['gbytes']:.2f} GB/s",
+            )
+        else:
+            print(
+                f"{result['func']:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4} not supported or redundant"
+            )
 
 
 def profile_with_args(batch_size, seq_len, hidden_size, dtype):
+    profile_results = []
     for func in dtype_to_funcs(dtype):
-        profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func)
+        profile_result = profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func)
+        profile_results.append(profile_result)
+    sorted_profile_results = sort_profile_results(profile_results, sort_item="gbytes", reverse=True)
+    print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results)
     print()
 
 

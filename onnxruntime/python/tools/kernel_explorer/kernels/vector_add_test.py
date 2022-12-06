@@ -10,6 +10,7 @@ sys.path.append("../build")
 import kernel_explorer as ke
 import numpy as np
 import pytest
+from utils import sort_profile_results
 
 
 def dtype_to_bytes(dtype):
@@ -68,13 +69,28 @@ def profile_vector_add_func(size, dtype, func):
     z_d = ke.DeviceArray(z)
     f = getattr(ke, func)
     va = f(x_d, y_d, z_d, size)
-    t = va.Profile()
-    print(dtype, size, f, f"{t*1000:.2f} us", f"{size*3*(dtype_to_bytes(dtype))*1e3/t/1e9:.2f} GB/s")
+    duration = va.Profile()
+    gbytes = size * 3 * (dtype_to_bytes(dtype)) * 1e3 / duration / 1e9
+    duration = duration * 1000
+    return {"func": func, "duration": duration, "gbytes": gbytes}
+
+
+def print_result(size, dtype, sorted_profile_results):
+    for result in sorted_profile_results:
+        print(
+            f"{result['func']:<50} {dtype} size={size:<4}",
+            f"{result['duration']:.2f} us",
+            f"{result['gbytes']:.2f} GB/s",
+        )
 
 
 def profile_with_args(size, dtype):
+    profile_results = []
     for func in dtype_to_funcs(dtype):
-        profile_vector_add_func(size, dtype, func)
+        profile_result = profile_vector_add_func(size, dtype, func)
+        profile_results.append(profile_result)
+    sorted_profile_results = sort_profile_results(profile_results, sort_item="gbytes", reverse=True)
+    print_result(size, dtype, sorted_profile_results)
     print()
 
 
