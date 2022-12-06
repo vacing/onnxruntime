@@ -10,6 +10,7 @@ from itertools import product
 import kernel_explorer as ke
 import numpy as np
 import pytest
+from utils import sort_profile_results
 
 
 def get_bert_sizes():
@@ -79,21 +80,34 @@ def profile_fast_gelu_func(batch_size, seq_len, hidden_size, dtype, func):
     my_op = f(x_d, bias_d, y_d, x.size, bias.size)
     if my_op.IsSupported():
         t = my_op.Profile()
-        print(
-            f"{func:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4}",
-            f"{t*1000:.2f} us",
-            f"{(x.size*2+bias.size)*x.itemsize*1e3/t/1e9:.2f} GB/s",
-        )
+        gbytes = (x.size * 2 + bias.size) * x.itemsize * 1e3 / t / 1e9
+        t = t * 1000
+        return {"func": func, "time": t, "gbytes": gbytes}
     else:
-        print(
-            f"{func:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4} not supported or redundant"
-        )
-        sys.stdout.flush()
+        return {"func": func, "time": -1, "gbytes": -1}
+
+
+def print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results):
+    for result in sorted_profile_results:
+        if result["gbytes"] > 0:
+            print(
+                f"{result['func']:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4}",
+                f"{result['time']:.2f} us",
+                f"{result['gbytes']:.2f} GB/s",
+            )
+        else:
+            print(
+                f"{result['func']:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4} not supported or redundant"
+            )
 
 
 def profile_with_args(batch_size, seq_len, hidden_size, dtype):
+    profile_results = []
     for func in dtype_to_funcs(dtype):
-        profile_fast_gelu_func(batch_size, seq_len, hidden_size, dtype, func)
+        profile_result = profile_fast_gelu_func(batch_size, seq_len, hidden_size, dtype, func)
+        profile_results.append(profile_result)
+    sorted_profile_results = sort_profile_results(profile_results, sort_item="gbytes", reverse=True)
+    print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results)
     print()
 
 
