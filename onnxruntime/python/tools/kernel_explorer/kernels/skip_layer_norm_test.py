@@ -107,20 +107,20 @@ def profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func):
     )
     if my_op.IsSupported():
         duration = my_op.Profile()
-        gbytes = (input_x.size * 3 + bias.size * 3) * input_x.itemsize * 1e3 / duration / 1e9
+        gbytes_per_seconds = (input_x.size * 3 + bias.size * 3) * input_x.itemsize * 1e3 / duration / 1e9
         duration = duration * 1000
-        return {"func": func, "duration": duration, "gbytes": gbytes}
+        return {"func": func, "duration": duration, "GBps": gbytes_per_seconds}
     else:
-        return {"func": func, "duration": -1, "gbytes": -1}
+        return {"func": func, "duration": -1, "GBps": -1}
 
 
-def print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results):
-    for result in sorted_profile_results:
-        if result["gbytes"] > 0:
+def print_results(batch_size, seq_len, hidden_size, dtype, profile_results):
+    for result in profile_results:
+        if result["GBps"] > 0:
             print(
                 f"{result['func']:<50} {dtype}  batch_size={batch_size:<4} seq_len={seq_len:<4} hidden_size={hidden_size:<4}",
                 f"{result['duration']:.2f} us",
-                f"{result['gbytes']:.2f} GB/s",
+                f"{result['GBps']:.2f} GB/s",
             )
         else:
             print(
@@ -128,13 +128,18 @@ def print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results
             )
 
 
-def profile_with_args(batch_size, seq_len, hidden_size, dtype):
-    profile_results = []
-    for func in dtype_to_funcs(dtype):
-        profile_result = profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func)
-        profile_results.append(profile_result)
-    sorted_profile_results = sort_profile_results(profile_results, sort_item="gbytes", reverse=True)
-    print_result(batch_size, seq_len, hidden_size, dtype, sorted_profile_results)
+def profile_with_args(batch_size, seq_len, hidden_size, dtype, enable_sort=True):
+    if enable_sort:
+        profile_results = []
+        for func in dtype_to_funcs(dtype):
+            profile_result = profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func)
+            profile_results.append(profile_result)
+        sorted_profile_results = sort_profile_results(profile_results, sort_item="GBps", reverse=True)
+        print_results(batch_size, seq_len, hidden_size, dtype, sorted_profile_results)
+    else:
+        for func in dtype_to_funcs(dtype):
+            profile_result = profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func)
+            print_results(batch_size, seq_len, hidden_size, dtype, [profile_result])
     print()
 
 
@@ -153,8 +158,10 @@ if __name__ == "__main__":
     group.add_argument("seq_len", type=int)
     group.add_argument("hidden_size", type=int)
     group.add_argument("dtype", choices=dtypes)
+    group.add_argument("--enable_sort", action="store_true")
+
     if len(sys.argv) == 1:
         profile()
     else:
         args = parser.parse_args()
-        profile_with_args(args.batch_size, args.seq_len, args.hidden_size, args.dtype)
+        profile_with_args(args.batch_size, args.seq_len, args.hidden_size, args.dtype, args.enable_sort)

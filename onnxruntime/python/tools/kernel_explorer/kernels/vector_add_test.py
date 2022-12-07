@@ -70,27 +70,32 @@ def profile_vector_add_func(size, dtype, func):
     f = getattr(ke, func)
     va = f(x_d, y_d, z_d, size)
     duration = va.Profile()
-    gbytes = size * 3 * (dtype_to_bytes(dtype)) * 1e3 / duration / 1e9
+    gbytes_per_seconds = size * 3 * (dtype_to_bytes(dtype)) * 1e3 / duration / 1e9
     duration = duration * 1000
-    return {"func": func, "duration": duration, "gbytes": gbytes}
+    return {"func": func, "duration": duration, "GBps": gbytes_per_seconds}
 
 
-def print_result(size, dtype, sorted_profile_results):
-    for result in sorted_profile_results:
+def print_results(size, dtype, profile_results):
+    for result in profile_results:
         print(
             f"{result['func']:<50} {dtype} size={size:<4}",
             f"{result['duration']:.2f} us",
-            f"{result['gbytes']:.2f} GB/s",
+            f"{result['GBps']:.2f} GB/s",
         )
 
 
-def profile_with_args(size, dtype):
-    profile_results = []
-    for func in dtype_to_funcs(dtype):
-        profile_result = profile_vector_add_func(size, dtype, func)
-        profile_results.append(profile_result)
-    sorted_profile_results = sort_profile_results(profile_results, sort_item="gbytes", reverse=True)
-    print_result(size, dtype, sorted_profile_results)
+def profile_with_args(size, dtype, enable_sort=True):
+    if enable_sort:
+        profile_results = []
+        for func in dtype_to_funcs(dtype):
+            profile_result = profile_vector_add_func(size, dtype, func)
+            profile_results.append(profile_result)
+        sorted_profile_results = sort_profile_results(profile_results, sort_item="GBps", reverse=True)
+        print_results(size, dtype, sorted_profile_results)
+    else:
+        for func in dtype_to_funcs(dtype):
+            profile_result = profile_vector_add_func(size, dtype, func)
+            print_results(size, dtype, [profile_result])
     print()
 
 
@@ -109,8 +114,10 @@ if __name__ == "__main__":
     group = parser.add_argument_group("profile with args")
     group.add_argument("size", type=int)
     group.add_argument("dtype", choices=dtypes)
+    group.add_argument("--enable_sort", action="store_true")
+
     if len(sys.argv) == 1:
         profile()
     else:
         args = parser.parse_args()
-        profile_with_args(args.size, args.dtype)
+        profile_with_args(args.size, args.dtype, args.enable_sort)

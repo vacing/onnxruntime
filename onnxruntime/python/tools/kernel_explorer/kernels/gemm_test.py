@@ -99,8 +99,20 @@ def test_gemm_tunable_bert_cases(dtype, size, transab):
     _test_gemm(getattr(ke, wrapper_name), dtype, *size, *transab)
 
 
-def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int, k: int):
-    profile_results = []
+def print_results(transa, transb, dtype, m, n, k, profile_results):
+    for result in profile_results:
+        if result["tflops"] > 0:
+            print(
+                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))}",
+                f"m={m:<4} n={n:<4} k={k:<4} {result['duration']:>8.4f} us {result['tflops']:>5.2f} tflops",
+            )
+        else:
+            print(
+                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))} m={m:<4} n={n:<4} k={k:<4} not supported"
+            )
+
+
+def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int, k: int, enable_sort=True):
     a_shape = (k, m) if transa else (m, k)
     b_shape = (n, k) if transb else (k, n)
 
@@ -120,45 +132,36 @@ def profile_gemm_func(f, transa: bool, transb: bool, dtype: str, m: int, n: int,
     alpha = 1.0
     beta = 0.0
     my_gemm = f(opa, opb, m, n, k, alpha, dev_a, lda, dev_b, ldb, beta, dev_c, n)
-    for impl in my_gemm.ListOps():
-        if not my_gemm.SelectOp(impl):
-            profile_results.append({"func": impl, "duration": -1, "tflops": -1})
-            continue
-        time_ms = my_gemm.Profile()
-        time_us = time_ms * 1000
-        tflops = (m * k * n * 2) / (time_ms * 1e-3) / 1e12
-        profile_results.append({"func": impl, "duration": time_us, "tflops": tflops})
-
-    return profile_results
-
-
-def print_result(transa, transb, dtype, m, n, k, sorted_profile_results):
-    for result in sorted_profile_results:
-        if result["tflops"] > 0:
-            print(
-                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))}",
-                f"m={m:<4} n={n:<4} k={k:<4} {result['duration']:>8.4f} us {result['tflops']:>5.2f} tflops",
-            )
-        else:
-            print(
-                f"{result['func']:<50} {dtype} {transab_to_suffix((transa, transb))} m={m:<4} n={n:<4} k={k:<4} not supported"
-            )
-
-
-def profile_with_args(transa, transb, dtype, m, n, k):
     profile_results = []
-    dtype_suffix = "_" + dtype_to_suffix(dtype)
-    profile_results.extend(profile_gemm_func(getattr(ke, "RocblasGemm" + dtype_suffix), transa, transb, dtype, m, n, k))
-    transab_suffix = "_" + transab_to_suffix((transa, transb))
-    profile_results.extend(
-        profile_gemm_func(getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
-    )
-    profile_results.extend(
-        profile_gemm_func(getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k)
-    )
+    for impl in my_gemm.ListOps():
+        profile_result = {"func": impl, "duration": -1, "tflops": -1}
+        if my_gemm.SelectOp(impl):
+            time_ms = my_gemm.Profile()
+            time_us = time_ms * 1000
+            tflops = (m * k * n * 2) / (time_ms * 1e-3) / 1e12
+            profile_result["duration"] = time_us
+            profile_result["tflops"] = tflops
 
-    sorted_profile_results = sort_profile_results(profile_results, sort_item="tflops", reverse=True)
-    print_result(transa, transb, dtype, m, n, k, sorted_profile_results)
+        if enable_sort:
+            profile_results.append(profile_result)
+        else:
+            print_results(transa, transb, dtype, m, n, k, [profile_result])
+
+    if enable_sort:
+        sorted_profile_results = sort_profile_results(profile_results, sort_item="tflops", reverse=True)
+        print_results(transa, transb, dtype, m, n, k, sorted_profile_results)
+
+
+def profile_with_args(transa, transb, dtype, m, n, k, enable_sort=True):
+    dtype_suffix = "_" + dtype_to_suffix(dtype)
+    profile_gemm_func(getattr(ke, "RocblasGemm" + dtype_suffix), transa, transb, dtype, m, n, k, enable_sort)
+    transab_suffix = "_" + transab_to_suffix((transa, transb))
+    profile_gemm_func(
+        getattr(ke, "CKGemm" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k, enable_sort
+    )
+    profile_gemm_func(
+        getattr(ke, "GemmTunable" + dtype_suffix + transab_suffix), transa, transb, dtype, m, n, k, enable_sort
+    )
 
 
 def profile():
@@ -180,8 +183,10 @@ if __name__ == "__main__":
     group.add_argument("m", type=int)
     group.add_argument("n", type=int)
     group.add_argument("k", type=int)
+    group.add_argument("--enable_sort", action="store_true")
+
     if len(sys.argv) == 1:
         profile()
     else:
         args = parser.parse_args()
-        profile_with_args(args.transa == "T", args.transb == "T", args.dtype, args.m, args.n, args.k)
+        profile_with_args(args.transa == "T", args.transb == "T", args.dtype, args.m, args.n, args.k, args.enable_sort)
