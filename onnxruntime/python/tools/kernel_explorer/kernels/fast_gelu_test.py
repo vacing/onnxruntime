@@ -84,8 +84,8 @@ def profile_fast_gelu_func(batch_size, seq_len, hidden_size, dtype, func):
         gbytes_per_seconds = (x.size * 2 + bias.size) * x.itemsize * 1e3 / t / 1e9
         t = t * 1000
         return {"func": func, "duration": t, "GBps": gbytes_per_seconds}
-    else:
-        return {"func": func, "duration": -1, "GBps": -1}
+
+    return {"func": func, "duration": -1, "GBps": -1}
 
 
 def print_results(batch_size, seq_len, hidden_size, dtype, profile_results):

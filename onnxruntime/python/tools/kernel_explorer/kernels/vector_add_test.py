@@ -5,8 +5,6 @@
 
 import sys
 
-sys.path.append("../build")
-
 import kernel_explorer as ke
 import numpy as np
 import pytest
@@ -39,8 +37,8 @@ def run_vector_add(size, dtype, func):
     y_d = ke.DeviceArray(y)
     z_d = ke.DeviceArray(z)
     f = getattr(ke, func)
-    va = f(x_d, y_d, z_d, size)
-    va.Run()
+    my_op = f(x_d, y_d, z_d, size)
+    my_op.Run()
     z_d.UpdateHostNumpyArray()
 
     z_ref = x + y
@@ -68,8 +66,8 @@ def profile_vector_add_func(size, dtype, func):
     y_d = ke.DeviceArray(y)
     z_d = ke.DeviceArray(z)
     f = getattr(ke, func)
-    va = f(x_d, y_d, z_d, size)
-    duration = va.Profile()
+    my_op = f(x_d, y_d, z_d, size)
+    duration = my_op.Profile()
     gbytes_per_seconds = size * 3 * (dtype_to_bytes(dtype)) * 1e3 / duration / 1e9
     duration = duration * 1000
     return {"func": func, "duration": duration, "GBps": gbytes_per_seconds}

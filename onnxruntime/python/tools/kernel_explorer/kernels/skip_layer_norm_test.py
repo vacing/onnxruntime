@@ -62,8 +62,8 @@ def run_skip_layer_norm(batch_size: int, seq_len: int, hidden_size: int, dtype: 
     gamma_d = ke.DeviceArray(gamma)
     beta_d = ke.DeviceArray(beta)
     y_d = ke.DeviceArray(output_y)
-    my_func = getattr(ke, func)
-    my_op = my_func(
+    f = getattr(ke, func)
+    my_op = f(
         y_d, input_d, skip_d, gamma_d, beta_d, bias_d, epsilon, hidden_size, batch_size * seq_len * hidden_size
     )
     if my_op.IsSupported():
@@ -101,8 +101,8 @@ def profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func):
     beta_d = ke.DeviceArray(beta)
     bias_d = ke.DeviceArray(bias)
     y_d = ke.DeviceArray(output_y)
-    my_func = getattr(ke, func)
-    my_op = my_func(
+    f = getattr(ke, func)
+    my_op = f(
         y_d, input_d, skip_d, gamma_d, beta_d, bias_d, epsilon, hidden_size, batch_size * seq_len * hidden_size
     )
     if my_op.IsSupported():
@@ -110,8 +110,8 @@ def profile_skip_layer_norm_func(batch_size, seq_len, hidden_size, dtype, func):
         gbytes_per_seconds = (input_x.size * 3 + bias.size * 3) * input_x.itemsize * 1e3 / duration / 1e9
         duration = duration * 1000
         return {"func": func, "duration": duration, "GBps": gbytes_per_seconds}
-    else:
-        return {"func": func, "duration": -1, "GBps": -1}
+
+    return {"func": func, "duration": -1, "GBps": -1}
 
 
 def print_results(batch_size, seq_len, hidden_size, dtype, profile_results):
