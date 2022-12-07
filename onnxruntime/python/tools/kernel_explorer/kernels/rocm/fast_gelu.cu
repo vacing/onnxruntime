@@ -55,26 +55,6 @@ class FastGeluStaticSelection : public IKernelExplorer {
 };
 
 template <typename T>
-class FastGeluStaticSelection : public IKernelExplorer {
- public:
-  FastGeluStaticSelection(DeviceArray& input, DeviceArray& bias, DeviceArray& output, int input_length, int bias_length)
-      : params_(this->Stream(), static_cast<T*>(input.ptr()), static_cast<T*>(bias.ptr()),
-                static_cast<T*>(output.ptr()), input_length, bias_length) {}
-
-  bool IsSupported() {
-    return true;
-  }
-
-  void Run() override {
-    ORT_THROW_IF_ERROR((contrib::rocm::FastGeluStaticSelection<T>(&params_)));
-  }
-
- private:
-  using ParamsT = contrib::rocm::FastGeluParams<T>;
-  ParamsT params_{};
-};
-
-template <typename T>
 class FastGeluTunable : public IKernelExplorer {
  public:
   FastGeluTunable(DeviceArray& input, DeviceArray& bias, DeviceArray& output, int input_length, int bias_length)
