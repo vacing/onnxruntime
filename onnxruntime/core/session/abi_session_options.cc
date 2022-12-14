@@ -40,6 +40,14 @@ ORT_API_STATUS_IMPL(OrtApis::CloneSessionOptions, const OrtSessionOptions* input
   API_IMPL_END
 }
 
+// Set xnnpack thread pool.
+ORT_API_STATUS_IMPL(OrtApis::SetGlobalThreadPool, _In_ OrtSessionOptions* options,
+                    void* xnnpack_thread_pool) {
+  printf("[debug][abi_session_options.cc][SetGlobalThreadPool]: set session_options xnnpack_thread_pool\n");
+  options->value.xnnpack_thread_pool_ = (pthreadpool*)xnnpack_thread_pool;
+  return nullptr;
+}
+
 // Set execution_mode.
 ORT_API_STATUS_IMPL(OrtApis::SetSessionExecutionMode, _In_ OrtSessionOptions* options,
                     ExecutionMode execution_mode) {
@@ -191,7 +199,6 @@ ORT_API_STATUS_IMPL(OrtApis::AddInitializer, _Inout_ OrtSessionOptions* options,
 ORT_API_STATUS_IMPL(OrtApis::AddExternalInitializers, _In_ OrtSessionOptions* options,
                     _In_reads_(initializers_num) const char* const* initializer_names,
                     _In_reads_(initializers_num) const OrtValue* const* initializers, size_t initializers_num) {
-
 #if !defined(ORT_MINIMAL_BUILD) && !defined(DISABLE_EXTERNAL_INITIALIZERS)
   API_IMPL_BEGIN
   onnxruntime::InlinedVector<std::string> names;

@@ -210,6 +210,15 @@ Status Environment::Initialize(std::unique_ptr<logging::LoggingManager> logging_
       to.name = ORT_TSTR("inter-op");
     }
     inter_op_thread_pool_ = concurrency::CreateThreadPool(&Env::Default(), to, concurrency::ThreadPoolType::INTER_OP);
+
+    // xnnpack thread pool
+    // printf("[debug][Environment::Initialize] thread pool size = 2\n");
+    // xnnpack_thread_pool_ = pthreadpool_create(2);
+    // if (!xnnpack_thread_pool_) {
+    //   printf("[debug][Environment::Initialize] xnnpack thread pool create failed\n");
+    // } else {
+    //   printf("[debug][Environment::Initialize] xnnpack thread pool create successed\n");
+    // }
   }
 
   ORT_TRY {

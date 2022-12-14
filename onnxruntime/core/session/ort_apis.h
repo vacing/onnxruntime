@@ -54,6 +54,7 @@ ORT_API_STATUS_IMPL(Run, _Inout_ OrtSession* sess, _In_opt_ const OrtRunOptions*
 ORT_API_STATUS_IMPL(CreateSessionOptions, OrtSessionOptions** out);
 ORT_API_STATUS_IMPL(CloneSessionOptions, const OrtSessionOptions* input, OrtSessionOptions** out);
 ORT_API_STATUS_IMPL(SetSessionExecutionMode, _In_ OrtSessionOptions* options, ExecutionMode execution_mode);
+ORT_API_STATUS_IMPL(SetGlobalThreadPool, _In_ OrtSessionOptions* options, void* xnnpack_thread_pool);
 ORT_API_STATUS_IMPL(SetOptimizedModelFilePath, _In_ OrtSessionOptions* options, _In_ const ORTCHAR_T* optimized_model_filepath);
 ORT_API_STATUS_IMPL(EnableProfiling, _In_ OrtSessionOptions* options, _In_ const ORTCHAR_T* profile_file_prefix);
 ORT_API_STATUS_IMPL(DisableProfiling, _In_ OrtSessionOptions* options);

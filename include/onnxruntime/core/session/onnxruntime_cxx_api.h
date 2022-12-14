@@ -451,6 +451,9 @@ struct SessionOptionsImpl : Base<T> {
 
   SessionOptionsImpl& SetExecutionMode(ExecutionMode execution_mode);  ///< Wraps OrtApi::SetSessionExecutionMode
 
+  //xnnpack thread pool
+  SessionOptionsImpl& SetGlobalThreadPool(void* xnnpack_thread_pool);
+
   SessionOptionsImpl& SetLogId(const char* logid);     ///< Wraps OrtApi::SetSessionLogId
   SessionOptionsImpl& SetLogSeverityLevel(int level);  ///< Wraps OrtApi::SetSessionLogSeverityLevel
 

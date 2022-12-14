@@ -138,14 +138,21 @@ XnnpackExecutionProvider::XnnpackExecutionProvider(const XnnpackExecutionProvide
            "Please set either intra_op_param.allow_spinning to 0 in the SessionOption config params,"
            "or the ORT intra-op threadpool size to 1.";
   }
-
+  printf("[debug][XnnpackExecutionProvider] xnnpack pool size = %d, ort pool size = %d, allow_intra_op_spinning = %d\n", xnn_thread_pool_size, ort_thread_pool_size, allow_intra_op_spinning);
   if (xnn_thread_pool_size == 0) {
     xnn_thread_pool_size = ort_thread_pool_size;
   }
 
   if (xnn_thread_pool_size > 1) {
     // pthreadpool is independent of ort-threadpoool, so we had better disable cpu spinning for ort-threadpool.
-    xnnpack_thread_pool_ = pthreadpool_create(static_cast<size_t>(xnn_thread_pool_size));
+    // xnnpack_thread_pool_ = pthreadpool_create(static_cast<size_t>(xnn_thread_pool_size));
+    printf("[debug][XnnpackExecutionProvider] xnn use ort thread pool\n");
+  }
+
+  // global xnnpack thread pool
+  if (info.session_options) {
+    printf("[debug][XnnpackExecutionProvider] set gloabl xnnpack thread pool\n");
+    xnnpack_thread_pool_ = info.session_options->xnnpack_thread_pool_;
   }
 }
 

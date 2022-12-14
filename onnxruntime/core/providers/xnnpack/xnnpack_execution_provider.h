@@ -23,6 +23,9 @@ struct XnnpackExecutionProviderInfo {
     if (auto it = po.find("intra_op_num_threads"); it != po.end()) {
       xnn_thread_pool_size = std::stoi(it->second);
     }
+    if(!session_options) {
+      printf("[debug][XnnpackExecutionProviderInfo] session options valid\n");
+    }
   }
 };
 

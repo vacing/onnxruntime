@@ -3617,6 +3617,8 @@ struct OrtApi {
 #ifdef __cplusplus
   OrtApi(const OrtApi&)=delete; // Prevent users from accidentally copying the API structure, it should always be passed as a pointer
 #endif
+ // xnnpack thread pool
+  ORT_API2_STATUS(SetGlobalThreadPool, _Inout_ OrtSessionOptions* options, void* xnnpack_thread_pool);
 };
 
 /*

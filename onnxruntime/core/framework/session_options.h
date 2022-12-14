@@ -11,6 +11,8 @@
 #include "core/optimizer/graph_transformer_level.h"
 #include "core/util/thread_utils.h"
 #include "core/framework/config_options.h"
+#include "../../../build/MacOS/Release/_deps/pthreadpool-src/include/pthreadpool.h"
+// #include "pthreadpool.h"
 
 namespace onnxruntime {
 
@@ -136,6 +138,11 @@ struct SessionOptions {
 
   // custom function callback to join a thread
   OrtCustomJoinThreadFn custom_join_thread_fn = nullptr;
+
+  // xnnpack thread pool
+  // std::unique_ptr<pthreadpool, > xnnpack_thread_pool_;
+  pthreadpool* xnnpack_thread_pool_{nullptr};
+  // int test_value = 0;
 };
 
 }  // namespace onnxruntime

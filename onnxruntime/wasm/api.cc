@@ -7,10 +7,13 @@
 
 #include <iostream>
 #include <vector>
+#include "../../../build/MacOS/Release/_deps/pthreadpool-src/include/pthreadpool.h"
 
 namespace {
 OrtEnv* g_env;
 }  // namespace
+
+pthreadpool* g_xnnpack_thread_pool_{nullptr};
 
 OrtErrorCode CheckStatus(OrtStatusPtr status) {
   OrtErrorCode error_code = ORT_OK;
@@ -49,7 +52,7 @@ int OrtInit(int num_threads, int logging_level) {
   RETURN_ERROR_CODE_IF_ERROR(CreateThreadingOptions, &tp_options);
   RETURN_ERROR_CODE_IF_ERROR(SetGlobalIntraOpNumThreads, tp_options, num_threads);
   RETURN_ERROR_CODE_IF_ERROR(SetGlobalInterOpNumThreads, tp_options, 1);
-
+  g_xnnpack_thread_pool_ = pthreadpool_create(2);
   return CHECK_STATUS(CreateEnvWithGlobalThreadPools,
                       static_cast<OrtLoggingLevel>(logging_level),
                       "Default",
@@ -113,6 +116,12 @@ OrtSessionOptions* OrtCreateSessionOptions(size_t graph_optimization_level,
   RETURN_NULLPTR_IF_ERROR(EnableOrtCustomOps, session_options);
 #endif
 
+  if(g_env) {
+    printf("[debug][OrtCreateSessionOptions] set thread pool to session_options\n");
+    // session_options->value.xnnpack_thread_pool_ = g_env->xnnpack_thread_pool_;
+  }
+
+  RETURN_NULLPTR_IF_ERROR(SetGlobalThreadPool, session_options, (void*)g_xnnpack_thread_pool_);
   return session_options;
 }
 

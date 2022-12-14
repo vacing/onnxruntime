@@ -10,6 +10,7 @@
 #include "core/platform/threadpool.h"
 #include "core/common/logging/logging.h"
 #include "core/framework/allocator.h"
+#include "../../../build/MacOS/Release/_deps/pthreadpool-src/include/pthreadpool.h"
 
 struct OrtThreadingOptions;
 namespace onnxruntime {
@@ -80,6 +81,10 @@ class Environment {
   Status UnregisterAllocator(const OrtMemoryInfo& mem_info);
 
   Environment() = default;
+
+  // xnnpack thread pool;
+  // pthreadpool* xnnpack_thread_pool_{nullptr};
+  // std::unique_ptr<pthreadpool> xnnpack_thread_pool_;
 
  private:
   ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Environment);
